@@ -1,0 +1,255 @@
+<html>
+<!-- The license of this page is Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0) -->
+<head>
+  <title>Bot</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#f76065">
+  <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.99.0/css/materialize.min.css"
+</head>
+
+<body bgcolor = "#ad1f23">
+  <nav>
+    <div class="nav-wrapper">
+      <a href="#" class="brand-logo center">Bot</a>
+      <ul id="nav-mobile" class="left hide-on-med-and-down">
+      </ul>
+    </div>
+  </nav>
+  <div class="input-field col s6">
+  <h1>Con questo html puoi startare un bot dal browser</h1>
+  <p></p>
+  <p>Per avere il token vai su @BotFather</a>.
+  <br><br>
+  <label for="token"><code></code></label><br>
+  <input id="token" type="text" placeholder="Metti qui il token" size= /><br><br>
+  <button id="startStop" type="button" onclick="startBot()">Start</button>
+  <p id="output"></p>
+  <script>
+var output = document.getElementById("output");
+var startStop = document.getElementById("startStop");
+var running = false;
+var botUrl;
+var xhr; // XMLHttpRequest
+var query = window.location.search;
+var token = query.replace("?token=", '');
+document.getElementById("token").value = token;
+function startBot() {
+  var token = document.getElementById("token").value;
+  botUrl = "https://api.telegram.org/bot" + token + "/";
+  log("Bot start");
+  startStop.innerText = "Stop";
+  startStop.onclick = stopBot;
+  running = true;
+  getUpdates();
+}
+function stopBot() {
+  running = false;
+  log("Bot stopped");
+  xhr.abort();
+  startStop.innerText = "Start";
+  startStop.onclick = startBot;
+}
+var nextUpdateId = 0;
+// Long polling of getUpdates
+function getUpdates() {
+  call("getUpdates", {
+    offset: nextUpdateId,
+    limit: 100,
+    timeout: 30
+  }, function(updates) {
+    if (updates.length > 0) {
+      for (var i=0; i<updates.length; ++i) {
+        handleUpdate(updates[i]);
+      }
+      var lastUpdate = updates[updates.length-1];
+      nextUpdateId = lastUpdate.update_id + 1;
+    }
+    if (running) {
+      getUpdates();
+    } else {
+      log("Bot stop");
+    }
+  }, function(errorCode, errorText) {
+    log(errorText);
+    stopBot();
+  }, 35);
+}
+function handleUpdate(update) {
+  if (update.message) {
+    handleMessage(update.message);
+  } else if (update.edited_message) {
+    handleEditedMessage(update.edited_message);
+  } else if (update.inline_query) {
+    handleInlineQuery(update.inline_query);
+  } else if (update.chosen_inline_result) {
+    handleChosenInlineResult(update.chosen_inline_result);
+  } else if (update.callback_query) {
+    handleCallbackQuery(update.callback_query);
+  }
+}
+function handleMessage(message) {
+  if (message.text) {
+    log(message.from.id + ": " + message.text);
+    if (message.text == "/start") {
+      call("sendMessage", {
+        chat_id: message.chat.id,
+        text: "Sono un bot figo in html" +
+              " /tastiera  - Per una tastiera semplice" +
+              " /tastierainline - Per una tastiera inline" 
+      });
+    } else if (message.text == "/tastiera") {
+      call("sendMessage", {
+        chat_id: message.chat.id,
+        text: "Scegli",
+        reply_markup: {
+          keyboard: [
+            [{text: "/tastierainline "}]
+            [{text: "/developer"}],
+            [{text: "/nasconditastiera"}]
+          ]
+        }
+      });
+    } else if (message.text == "/nasconditastiera") {
+      call("sendMessage", {
+        chat_id: message.chat.id,
+        text: "Tastiera nascosta",
+        reply_markup: {
+          hide_keyboard: true
+        }
+      });
+    } else if (message.text == "/tastierainline") {
+      call("sendMessage", {
+        chat_id: message.chat.id,
+        text: "Scegli:",
+        reply_markup: {
+          inline_keyboard: [
+            [{text: "Telegram", url: "https://telegram.me"}],
+            [{text: "Google", url: "https://google.com"}],
+            [{text: "Nascondi", callback_data: "HIDE"}]
+          ]
+        }
+    });
+     } else if (message.text == "/developer") {
+      call("sendMessage", {
+        chat_id: message.chat.id,
+        text: "Scegli:",
+        reply_markup: {
+          inline_keyboard: [
+            [{text: "Telegram", url: "https://telegram.me/xLightworkpvp"}],
+            [{text: "Canale TG", url: "https://telegram.me/McForceOp"}],
+            [{text: "Nascondi", callback_data: "HIDE"}]
+          ]
+        }
+      });
+    }
+  } else {
+    log("ID:" + message.from.id + ": " + toJson(message));
+  }
+}
+function handleEditedMessage(message) {
+  if (message.text) {
+    log("ID:" + message.from.id + " (edit): " + message.text);
+  } else {
+    log("ID:" + message.from.id + " (edit): " + toJson(message));
+  }
+}
+function handleInlineQuery(inlineQuery) {
+  log(toJson(inlineQuery));
+  if (!inlineQuery.query) {
+    return;
+  }
+  call("answerInlineQuery", {
+    inline_query_id: inlineQuery.id,
+    results: [
+      {
+        type: "article",
+        id: "B",
+        title: "Bold",
+        input_message_content: {
+          message_text: "<b>" + inlineQuery.query + "</b>",
+          parse_mode: "HTML"
+        },
+        description: "*" + inlineQuery.query + "*"
+      },
+      {
+        type: "article",
+        id: "I",
+        title: "Italic",
+        input_message_content: {
+          message_text: "<i>" + inlineQuery.query + "</i>",
+          parse_mode: "HTML"
+        },
+        description: "_" + inlineQuery.query + "_"
+      }
+    ]
+  });
+}
+function handleChosenInlineResult(inlineResult) {
+  log(toJson(inlineResult));
+}
+function handleCallbackQuery(query) {
+  log(toJson(query));
+  if (query.data == "HIDE") {
+    call("editMessageText", {
+      chat_id: query.message.chat.id,
+      message_id: query.message.message_id,
+      text: "Tastiera Nascosta"
+    });
+  }
+}
+function call(method, params, onResponse, onError, timeout) {
+  xhr = new XMLHttpRequest();
+  xhr.open("POST", botUrl + method);
+  xhr.setRequestHeader("Content-type", "application/json");
+  xhr.onreadystatechange = function () {
+      if (xhr.readyState == 4 && xhr.responseText) {
+        var response = JSON.parse(xhr.responseText);
+        if (response.result) {
+          if (onResponse) {
+              onResponse(response.result);
+          }
+        } else if (onError) {
+          onError(response.error_code, response.description);
+        } else {
+          log(method + ": " + response.description);
+        }
+      }
+  }
+  xhr.timeout = timeout ? timeout * 1000 : 15000;
+  xhr.ontimeout = function() {
+    if (onError) {
+      onError(-1, "Timeout");
+    } else {
+      log(method + ": Timeout");
+    }
+   };
+    xhr.send(JSON.stringify(params));
+}
+function log(message) {
+  output.innerHTML = "<pre>" +new Date().toLocaleTimeString() + "\n" + message + "</pre>" + output.innerHTML;
+}
+function toJson(object) {
+  return JSON.stringify(object, undefined, 2);
+}
+  </script>
+  <br><br><br><br><br><br><br><br>
+  <footer class="page-footer">
+    <div class="container">
+      <div class="row">
+        <div class="col l2 s12">
+          <h5 class="white-text">Tg Bot Html</h5>
+          <p class="grey-text text-lighten-4">Created by zRedNight</p>
+        </div>
+        <div class="col l1 offset-l2 s12">
+          <h5 class="white-text">Link</h5>
+          <ul>
+            <li><a class="grey-text text-lighten-3" href="https://github.com/zRedNight_/TG-Bot-HTML">Github</a></li>
+          </ul>
+        </div>
+      </div>
+     </div> 
+     </div>
+  </footer>
+</body>
+</html>
